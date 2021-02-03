@@ -2,6 +2,7 @@ library(shiny)
 library(tidyverse)
 library(tidycensus)
 
+census_api_key(Sys.getenv("US_CENSUS_KEY"), install = TRUE) # in .Rprofile
 acs_vars <- load_variables(year = 2019, dataset = "acs5", cache = TRUE)
 acs_choices <- acs_vars %>%
     filter(label != "Estimate!!Total:") %>%
@@ -105,13 +106,13 @@ server <- function(input, output, session) {
     
     output$dataTable <- DT::renderDataTable({
         results <- acs_results(variables = input$variables,
-                               geography = input$geography) %>%
-            as_tibble() %>%
-            select(-geometry)
+                               geography = input$geography)
         if (all(is.na(results))) {
           DT::datatable(tibble()) %>% return()
+        } else {
+          DT::datatable(results, filter = "top") %>% as_tibble() %>%
+            select(-geometry) %>% return()
         }
-        DT::datatable(results, filter = "top") %>% return()
     })
     
     output$downloadData <- downloadHandler(
