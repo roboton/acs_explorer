@@ -2,8 +2,10 @@ library(shiny)
 library(tidyverse)
 library(tidycensus)
 
-census_api_key(Sys.getenv("US_CENSUS_KEY"), install = TRUE) # in .Rprofile
-acs_vars <- load_variables(year = 2019, dataset = "acs5", cache = TRUE)
+acs_year <- 2019
+survey <- "acs5"
+census_api_key(Sys.getenv("US_CENSUS_KEY")) # defined in .Rprofile
+acs_vars <- load_variables(year = acs_year, dataset = survey, cache = TRUE)
 acs_choices <- acs_vars %>%
     filter(label != "Estimate!!Total:") %>%
     rename(value = name) %>%
@@ -12,7 +14,7 @@ acs_choices <- acs_vars %>%
     select(name, value) %>% deframe()
 
 acs_results <- function(variables, geography = "county", states = NULL,
-                        year = 2019, summary_var = "B01003_001") {
+                        year = acs_year, summary_var = "B01003_001") {
     query_vars <- acs_vars %>%
         filter(name %in% variables)
     if (nrow(query_vars) == 0) {
@@ -27,7 +29,7 @@ acs_results <- function(variables, geography = "county", states = NULL,
     get_acs(geography = geography,
             variables = query_vars %>% pull(name),
             state = states, shift_geo = shift_geo,
-            survey = "acs5", year = 2019, cache_table = TRUE, geometry = TRUE,
+            survey = survey, year = year, cache_table = TRUE, geometry = TRUE,
             summary_var = "B01003_001" # total population
             ) %>%
         left_join(query_vars, by = c("variable" = "name")) %>%
@@ -39,7 +41,7 @@ acs_results <- function(variables, geography = "county", states = NULL,
 ui <- function(request) {
     fluidPage(
         shinybusy::add_busy_bar(color = "CornflowerBlue", timeout = 800),
-        titlePanel("ACS Explorer"),
+        titlePanel("American Community Survey Data Explorer (2014-2019)"),
         tags$a(
             href = "https://github.com/roboton/acs_explorer",
             target = "_blank", "[git]"),
@@ -110,8 +112,8 @@ server <- function(input, output, session) {
         if (all(is.na(results))) {
           DT::datatable(tibble()) %>% return()
         } else {
-          DT::datatable(results, filter = "top") %>% as_tibble() %>%
-            select(-geometry) %>% return()
+          results %>% as_tibble() %>% select(-geometry) %>%
+            DT::datatable(filter = "top") %>% return()
         }
     })
     
